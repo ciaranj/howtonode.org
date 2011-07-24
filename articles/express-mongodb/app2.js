@@ -1,36 +1,55 @@
-//root
-get('/', function(){
-  var self = this;
-  articleProvider.findAll(function(error, docs){
-    self.render('blogs_index.html.haml', {
-      locals: {
-        title: 'Blog',
-        articles: docs
-      }
-    });
-  })
-})
+var express = require('express');
+var ArticleProvider = require('./articleprovider-memory').ArticleProvider;
 
-//css
-get('/*.css', function(file){
-  this.render(file + '.css.sass', { layout: false });
+var app = module.exports = express.createServer();
+
+app.configure(function(){
+  app.set('views', __dirname + '/views');
+  app.set('view engine', 'jade');
+  app.use(express.bodyParser());
+  app.use(express.methodOverride());
+  app.use(require('stylus').middleware({ src: __dirname + '/public' }));
+  app.use(app.router);
+  app.use(express.static(__dirname + '/public'));
+});
+
+app.configure('development', function(){
+  app.use(express.errorHandler({ dumpExceptions: true, showStack: true }));
+});
+
+app.configure('production', function(){
+  app.use(express.errorHandler());
+});
+
+var articleProvider= new ArticleProvider();
+
+//root
+app.get('/', function(req, res){
+    articleProvider.findAll( function(error,docs){
+        res.render('blog_index.jade', { locals: {
+            title: 'Blog',
+            articles:docs
+            }
+        });
+    })
 });
 
 //blog
-get('/blog/new', function(){
-  this.render('blog_new.html.haml', {
-    locals: {
-      title: 'New Post'
+app.get('/blog/new', function(req, res) {
+    res.render('blog_new.jade', { locals: {
+        title: 'New Post'
     }
-  });
+    });
 });
 
-post('/blog/new', function(){
-  var self = this;
-  articleProvider.save({
-    title: this.param('title'),
-    body: this.param('body')
-  }, function(error, docs) {
-    self.redirect('/')
-  });
+app.post('/blog/new', function(req, res){
+    articleProvider.save({
+        title: req.param('title'),
+        body: req.param('body')
+    }, function( error, docs) {
+        res.redirect('/')
+    });
 });
+
+//listen
+app.listen(3000);

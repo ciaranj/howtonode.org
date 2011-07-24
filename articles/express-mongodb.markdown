@@ -1,11 +1,13 @@
 Title: Blog rolling with mongoDB, express and Node.js
 Author: Ciaran Jessup
 Date: Thu Feb 18 2010 21:28:42 GMT+0000 (UTC)
-Node: v0.1.91
+Node: v0.4.10
+
+> Article and Code updated by [loarabia (Larry Olson)][loarabiaSite].
 
 In this article I hope to take you through the steps required to get a fully-functional (albeit feature-light) persistent blogging system running on top of [node][].
 
-The technology stack that we'll be using will be [node][] + [express][] + [mongoDB][] all of which are exciting, fast and highly scalable. You'll also get to use [haml-js][] and [sass.js][] for driving the templated views and styling! We will be using [kiwi][] to easy the package management and installation issues.
+The technology stack that we'll be using will be [node][] + [express][] + [mongoDB][] all of which are exciting, fast and highly scalable. You'll also get to use [jade][] and [stylus][] for driving the templated views and styling! We will be using [npm][] to ease the package management and installation issues.
 
 This article will be fairly in-depth so you may want to get yourself a rather large mug of whatever beverage you prefer before you settle down :)
 
@@ -19,25 +21,26 @@ Whilst not a mandatory requirement I will be using git to pull down code from va
 
 ###mongoDB###
 
-Installation is as simple as downloading the [installer from here][]. For this tutorial I've been using v1.2.2 on MacOSX but any recent version should work. Once installed you can just execute 'mongod' to have a local instance up and running.
+Installation is as simple as downloading the [installer from here][]. For this tutorial I've been using v1.8.2 on MacOSX but any recent version should work. Once installed you can just execute 'mongod' to have a local instance up and running.
 
 ###node.js###
 
-I'll assume that you already have an installed version of node.js (why else would you be looking at a how-to?! ;) ) However as [node][] is subject to a reasonably high rate of change for the purposes of this article everything has been written to run against the ['v0.1.91' tag][].
+I'll assume that you already have an installed version of node.js (why else would you be looking at a how-to?! ;) ) However as [node][] is subject to a reasonably high rate of change for the purposes of this article everything has been written to run against the ['v0.4.10' tag][].
 
-###kiwi###
+###npm###
 
-The original version of this article required various dependencies to be installed by hand from github repositories, package management has moved on within node.js since that time and we will use this to our advantage by following the instructions on how to install the [kiwi package manager][].
-Once kiwi is installed you should be able to execute:
+The original version of this article required various dependencies to be installed by hand from github repositories, package management has moved on within node.js since that time and we will use this to our advantage by following the instructions on how to install the [npm][].
+Once npm is installed you should be able to execute:
 
-    kiwi search
+    npm search
 
 From your console and see a list of [node][] packages that can be installed, if you cannot then it would be a good plan to figure out why not before proceeding.
 
 ## Getting hold of express
 Installing express on your system is as easy as:
 
-    kiwi install express 0.9.0
+    // You may need to run this under sudo
+    npm install express -g
 
 Now we can begin with the process of writing our blog, let the good times (blog)roll.
 
@@ -61,7 +64,11 @@ Because we're dealing with a [document orientated][] database rather than a [rel
       created_at: new Date()
     }
 
-There are plenty of other document configurations we could've gone for but this will provide us with a good foundation (for example there's no notion of article authors.). Also the `created_at` field could most probably be omitted as the default 'Primary Key factory' that the mongo-db-native client that we're using generates time-based object-ids, but for simplicity we'll go with a 'proper' date.
+There are plenty of other document configurations we could've used. For example,
+there's no notion of an article's authors and the 'created_at' field could
+probably be omitted as the default 'Primary Key factory' that mongodb-native
+uses generates time-based object ids. However, this datatype provides a good
+foundation and we'll use a 'proper' date for simplicity.
 
 > It should be noted that one oft-reported issue with mongoDB is the size of the data on the disk. As we're dealing with a [document orientated][] database each and every record stores all the field-names with the data so there is no re-use. This means that it can often be more space-efficient to have properties such as 't', or 'b' rather than 'title' or 'body', however for fear of confusion I would avoid this unless truly required!
 
@@ -80,15 +87,32 @@ Now that we know what we're trying to achieve lets try and achieve that goal in 
 
 _Well alright, fairly small blogging apps can grow!_
 
-In express a 'normal' application consists of a call to `configure`, followed by a series of method calls that declare `routes` and what happens to requests that match the route followed by a call to `run`.
+In express a 'normal' application consists of a call to `configure`, followed by a series of method calls that declare `routes` and what happens to requests that match the route followed by a call to `listen`.
 
-Thus one of the simplest express applications (when using kiwi) could be written as follows:
+Thus one of the simplest express applications could be written as follows:
 
 <express-mongodb/simple-express.js>
 
 The above code declares a single `route` that operates on `GET` requests to the address `/` from the browser and will just return a simple (non-HTML) text string and a response code of 200 to the client.
 
-Convention seems to be to place this code into a file named `app.js` at the root of your express folder. If you do this and then execute it:
+Now, this is one of the simplest bits of application code one can write but
+express is a framework which can automatically build out an application
+template for you including picking a styling and templating engine.
+
+By executing the following commands:
+
+    mkdir blog
+    cd blog
+    express -c stylus
+    npm install -d
+
+You will have:
+
+1. Made the blog directory for your project (might be a good idea to put this under source control)
+2. Asked express to generate an application using the jade template engine and the stylus css engine (jade is the default html template engine)
+3. Asked npm to download and locally install any dependencies required by this express application.
+
+If you were to now take simple-express.js an put it into the blog folder as 'app.js' you should be able to execute it.
 
     node app.js
 
@@ -96,7 +120,7 @@ When you browse to [localhost:3000][] you should see that old favourite 'Hello W
 
 ## A chapter in which we build on our humble beginnings ##
 
-Now that we have a fully working web server we should probably look at doing something with it. In this section we will learn how to use [Haml][] to render our data and create forms to post the data back to the server, initially we will store this in memory.
+Now that we have a fully working web server we should probably look at doing something with it. In this section we will learn how to use [jade][] to render our data and create forms to post the data back to the server, initially we will store this in memory.
 
 The layout of express applications is fairly familiar and is usually of the form:
 
@@ -105,15 +129,9 @@ The layout of express applications is fairly familiar and is usually of the form
     |-- lib                 /* Third-party dependencies                 */
     |-- public              /* Publicly accessible resources            */
     |   |-- images
-    |   `-- javascript
+    |   `-- javascripts
+    |   `-- stylesheets 
     `-- views               /* The templates for the 'views'            */
-
-Please take a moment to create the folders that you require, these will need creating:
-
-    mkdir public
-    mkdir public/javascript
-    mkdir public/images
-    mkdir views
 
 ###Of providers and data###
 
@@ -131,11 +149,11 @@ If the app is re-run and you browse to [localhost:3000][] you will see the objec
 
 Now we have a way of reading and storing data (patience, memory is only the beginning!) we'll want a way of displaying and creating the data properly. Initially we'll start by just providing an index view of all the blog articles. To do this create the following two files in your views sub-directory (be very careful about the indentation, that first lines should be up against the left-hand margin!):
 
-<express-mongodb/views/layout.html.haml>
+<express-mongodb/views/layout.jade>
 
 and
 
-<express-mongodb/views/blogs_index.html.haml>
+<express-mongodb/views/blog_index.jade>
 
 Next change your `get('/')` routing rule in your `app.js` to be as follows:
 
@@ -145,41 +163,36 @@ Now you should be able to restart the server and browser to [localhost:3000][]. 
 
 There are two important things to note that we've just done;
 
-The first is the change to our application's routing rules. What we've done is say that for any browser requests that come in to the route ('/') we should ask the data provider for all the articles it knows about (a future improvement might be 'the most recent 10 posts etc.') and to 'render' those returned articles using the [haml-js][] template `blogs_index.html.haml`.
+The first is the change to our application's routing rules. What we've done is say that for any browser requests that come in to the route ('/') we should ask the data provider for all the articles it knows about (a future improvement might be 'the most recent 10 posts etc.') and to 'render' those returned articles using the [jade][] template `blog_index.jade`.
 
-The second is the usage of a 'layout' [haml-js][] file `layout.html.haml`. This file will be used whenever a call to 'render' is made (unless over-ridden in that particular call) and provides a simple mechanism for common style across all page requests.
+The second is the usage of a 'layout' [jade][] file `layout.jade`. This file will be used whenever a call to 'render' is made (unless over-ridden in that particular call) and provides a simple mechanism for common style across all page requests.
 
-> If you're familiar with [Haml][] then you may want to skip this section, otherwise please read-on! [Haml][] is yet-another templating language, however this one is driven by the rule that 'Markup should be beautiful'. It provides a lightweight syntax for declaring markup with a bare minimum of typed characters.
+> If you're familiar with [jade][] then you may want to skip this section, otherwise please read-on! [jade][] is yet-another templating language, however this one is driven by the rule that 'Markup should be beautiful'. It provides a lightweight syntax for declaring markup with a bare minimum of typed characters.
 >
-> [haml-js][] is a server-side JavaScript partial/mostly-complete implementation of [Haml][]. Reading a [haml-js][] template is simple. The hierarchy of elements is expressed as indentation on the left hand-side; that is, everything that starts in a given column shares the same parent. Each line of [Haml][] represents either a new element in the (eventual) HTML document or a function within [Haml][] (which offers conditions and loops etc). Effectively [haml-js][] takes a JSON object and binds it to any `literal` text in the [haml-js][] template, applies the rules that define [Haml][] and then processes the resulting bag of stuff to produce a well-formed and valid HTML document of the specified DOCTYPE. (Yay!)
+> Reading a [jade][] template is simple. The hierarchy of elements is expressed as indentation on the left hand-side; that is, everything that starts in a given column shares the same parent. Each line of [jade][] represents either a new element in the (eventual) HTML document or a function within [jade][] (which offers conditions and loops etc). Effectively [jade][] takes a JSON object and binds it to any `literal` text in the [jade][] template, applies the rules that define [jade][] and then processes the resulting bag of stuff to produce a well-formed and valid HTML document of the specified DOCTYPE. (Yay!)
 
 As is probably obvious we need a little styling to be applied here, to do that we'll need to change our layout a little to request a stylesheet:
 
-<express-mongodb/views/layout2.html.haml>
+<express-mongodb/views/layout2.jade>
 
-Add a Sass template to the `views` folder in order to generate the css:
+Add a stylus template to the `views` folder in order to generate the css:
 
-<express-mongodb/views/style.css.sass>
+<express-mongodb/public/stylesheets/style.styl>
 
-And add a new route to app.js:
-
-<express-mongodb/app2.js#css>
+Since we configure the express application template to use Stylus, css based on our new sheet should be applied.
 
 Again after restarting your app and browsing to [localhost:3000][] you should see the posts, with a little more style (admittedly not much more!).
 
-A couple of things to notice here:
+Something to notice here:
 
-1. We setup a route to handle the request for the css as a regular expression match. We then used the matched url segment to load a Sass file from the available views and `express` dynamically converts the Sass into CSS for us on the fly. In a production environment there are configuration options that can be passed to the `configure` method to make sure these views are cached but during development its rather useful to be able to change your Sass on the fly :)
-2. As express is treating the sass to CSS rendering in exactly the same manner as the Haml to HTML rendering we need to suppress the default `layout` behaviour as there is no meaningful layout here for our Sass.
-
-> Sass is to CSS as Haml is to HTML. However reading Sass can be a little more complex as the hierarchy that is being described is really individual selectors. Lines that start at the same column and begin with a `:` are rules, these rules are applied to the hierarchy that they're found under, for example in the above Sass example the bottom most line of Sass `:background-color #ffa` is equivalent to the CSS `#articles .article .body {background-color: #ffa;}` this equivalence is due to the position of the start of this line relative to its parent lines :) (Easy really!)
+> Stylus is to CSS as jade is to HTML. However reading stylus can be a little more complex as the hierarchy that is being described is really individual selectors. Lines that start at the same column are rules. Rules are applied to the hierarchy that they're found under, for example in the above stylus example, the bottom most line of stylus `background-color #ffa` is equivalent to the CSS `#articles .article .body {background-color: #ffa;}` this equivalence is due to the position of the start of this line relative to its parent lines :) (Easy really!)
 
 
 ###Great, so how do I make my first post?###
 
 Now we can view a list of blog posts it would be nice to have a simple form for making new posts and being re-directed back to the new list. To achieve this we'll need a new view (to let us create a post) and two new routes (one to accept the post data, the other to return the form).
 
-<express-mongodb/views/blog_new.html.haml>
+<express-mongodb/views/blog_new.jade>
 
 Add two new routes to app.js
 
@@ -193,10 +206,10 @@ If I've lost you along the way you can get a zip of this fully working (but non-
 
 I promised that by the end of this article we'd be persisting our data across restarts of node, I've not yet delivered on this promise but now I will ..hopefully ;)
 
-To do this we need to install a dependency on [node-mongodb-native][], which will allow our burgeoning application to access [mongoDB][]. Once again our friend kiwi comes to the rescue.  If we open the console up and enter the `express` directory we created earlier we will be able to type the following commands to install the driver.
+To do this we need to install a dependency on [node-mongodb-native][], which will allow our burgeoning application to access [mongoDB][]. Once again our friend npm comes to the rescue.  If we open the console up and enter the blog directory we created earlier or if that is still your working directory, then we will be able to type the following command to install the driver.
 
     #!sh
-    kiwi install mongodb-native 0.7.0
+    npm install mongodb
 
 Now we need to replace our old memory based data provider with one thats capable of using mongodb:
 
@@ -261,15 +274,15 @@ We'll also need a new route to allow the article to be referenced by a URL and w
 
 We need to update the index page's view:
 
-<express-mongodb/views/blogs_index-final.html.haml>
+<express-mongodb/views/blogs_index-final.jade>
 
 The page that shows a single blog entry:
 
-<express-mongodb/views/blog_show-final.html.haml>
+<express-mongodb/views/blog_show-final.jade>
 
 The stylesheet that renders these pages:
 
-<express-mongodb/views/style-final.css.sass>
+<express-mongodb/public/stylesheets/style-final.styl>
 
 We also need to add a new rule to `app.js` for serving these view requests:
 
@@ -313,21 +326,20 @@ __Fin__.
 
 [git]: http://git-scm.com/
 [node]: http://nodejs.org
-[kiwi]: http://wiki.github.com/visionmedia/kiwi
-[kiwi package manager]: http://wiki.github.com/visionmedia/kiwi/getting-started
+[npm]: http://npmjs.org/
 [express]: http://github.com/visionmedia/express
 [mongoDB]: http://www.mongodb.org
-[installer from here]: http://www.mongodb.org/display/DOCS/Downloads
-['v0.1.91' tag]: http://github.com/ry/node/tree/v0.1.91
+[installer from here]: http://www.mongodb.org/downloads
+['v0.4.10' tag]: http://github.com/joyent/node/tree/v0.4.10
 [localhost:3000]: http://localhost:3000
 [new post]: http://localhost:3000/blog/new
 [document orientated]: http://en.wikipedia.org/wiki/Document-oriented_database
 [relational]: http://en.wikipedia.org/wiki/Relational_database_management_system
-[haml-js]: http://github.com/visionmedia/haml.js
-[Haml]: http://haml-lang.com/
-[sass.js]: http://github.com/visionmedia/sass.js
+[jade]: http://jade-lang.com/ 
+[stylus]: http://learnboost.github.com/stylus/
 [node-mongodb-native]: http://github.com/christkv/node-mongodb-native
 [surrogate]: http://en.wikipedia.org/wiki/Surrogate_key
 [natural]: http://en.wikipedia.org/wiki/Natural_key
 [Checkpoint 1]: http://github.com/creationix/howtonode.org/tree/master/articles/express-mongodb/express-mongodb-1.zip
 [Checkpoint 2]: http://github.com/creationix/howtonode.org/tree/master/articles/express-mongodb/express-mongodb-2.zip
+[loarabiaSite]: http://loarabia.tumblr.com
